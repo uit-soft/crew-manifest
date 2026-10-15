@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0b0f0c" />
+    <title>Crew Manifest has moved</title>
+    <style>
+      :root {
+        --bg: #0b0f0c;
+        --panel: #111813;
+        --panel-border: #24352a;
+        --text: #cfe8d4;
+        --muted: #7d9984;
+        --accent: #6dff9e;
+        --accent-ink: #062110;
+        --mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, 'Liberation Mono', monospace;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 16px;
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--mono);
+        line-height: 1.5;
+      }
+      main {
+        max-width: 40rem;
+        margin: 2rem auto;
+        padding: 1.5rem;
+        background: var(--panel);
+        border: 1px solid var(--panel-border);
+        border-radius: 6px;
+      }
+      h1 {
+        margin-top: 0;
+        color: var(--accent);
+        font-size: 1.3rem;
+      }
+      a {
+        color: var(--accent);
+      }
+      .muted {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin: 1.5rem 0;
+      }
+      button {
+        min-height: 44px;
+        padding: 0.5rem 1rem;
+        font: inherit;
+        color: var(--text);
+        background: transparent;
+        border: 1px solid var(--panel-border);
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      button.primary {
+        color: var(--accent-ink);
+        background: var(--accent);
+        border-color: var(--accent);
+      }
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1 data-t="title"></h1>
+      <p data-t="moved"></p>
+      <p><a id="new-link"></a></p>
+      <div id="has-data" hidden>
+        <p id="found"></p>
+        <div class="actions">
+          <button type="button" class="primary" id="move" data-t="move"></button>
+          <button type="button" id="download" data-t="download"></button>
+        </div>
+        <p class="muted" data-t="moveHelp"></p>
+        <p class="muted" data-t="downloadHelp"></p>
+        <p class="muted" data-t="kept"></p>
+      </div>
+      <p id="no-data" class="muted" data-t="noData" hidden></p>
+    </main>
+    <script>
+      const NEW_URL = 'https://lukaszlenart.github.io/crew-manifest/'
+      const CHARACTERS_KEY = 'crew-manifest/characters'
+      const LANG_KEY = 'crew-manifest/lang'
+
+      const MESSAGES = {
+        en: {
+          title: 'Crew Manifest has moved',
+          moved: 'The app now lives at a new address. Your saved characters are still here, in this browser, and you can take them with you.',
+          found: 'Characters saved at this address: {count}.',
+          move: 'Move characters to the new address',
+          download: 'Download backup',
+          moveHelp: 'Moving opens the new address and shows the import dialog; choose Merge to keep characters you already have there.',
+          downloadHelp: 'On an iPad or iPhone app added to the Home Screen, download the backup and use Import in the new app instead.',
+          kept: 'Nothing is deleted here, so you can come back and try again.',
+          noData: 'No characters were saved at this address. Opening the new address…',
+        },
+        pl: {
+          title: 'Crew Manifest ma nowy adres',
+          moved: 'Aplikacja działa teraz pod nowym adresem. Zapisane postacie wciąż są tutaj, w tej przeglądarce, i możesz je przenieść.',
+          found: 'Postacie zapisane pod tym adresem: {count}.',
+          move: 'Przenieś postacie pod nowy adres',
+          download: 'Pobierz kopię zapasową',
+          moveHelp: 'Przeniesienie otworzy nowy adres z oknem importu; wybierz Scal, aby zachować postacie, które już tam masz.',
+          downloadHelp: 'W aplikacji dodanej do ekranu początkowego iPada lub iPhone’a pobierz kopię i użyj Importu w nowej aplikacji.',
+          kept: 'Nic tutaj nie jest usuwane, więc możesz wrócić i spróbować ponownie.',
+          noData: 'Pod tym adresem nie zapisano żadnych postaci. Otwieram nowy adres…',
+        },
+      }
+
+      function read(key) {
+        try {
+          return localStorage.getItem(key)
+        } catch {
+          return null
+        }
+      }
+
+      function storedCharacters() {
+        try {
+          const data = JSON.parse(read(CHARACTERS_KEY) ?? '[]')
+          return Array.isArray(data) ? data : []
+        } catch {
+          return []
+        }
+      }
+
+      function language() {
+        const stored = read(LANG_KEY)
+        if (stored === 'en' || stored === 'pl') return stored
+        return navigator.language?.toLowerCase().startsWith('pl') ? 'pl' : 'en'
+      }
+
+      // Must match encodeTransfer in src/storage/transfer.ts of the app.
+      function encodeTransfer(text) {
+        let binary = ''
+        for (const byte of new TextEncoder().encode(text)) binary += String.fromCharCode(byte)
+        return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+      }
+
+      function backupFilename(date) {
+        const pad = (n) => String(n).padStart(2, '0')
+        return `crew-manifest-${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}.json`
+      }
+
+      const lang = language()
+      const t = MESSAGES[lang]
+      document.documentElement.lang = lang
+      document.title = t.title
+      for (const el of document.querySelectorAll('[data-t]')) el.textContent = t[el.dataset.t]
+      const link = document.getElementById('new-link')
+      link.href = NEW_URL
+      link.textContent = NEW_URL
+
+      const characters = storedCharacters()
+      const now = new Date()
+      const backup = JSON.stringify(
+        { app: 'crew-manifest', formatVersion: 1, exportedAt: now.toISOString(), characters },
+        null,
+        2,
+      )
+
+      if (characters.length === 0) {
+        document.getElementById('no-data').hidden = false
+        setTimeout(() => location.replace(NEW_URL), 1500)
+      } else {
+        document.getElementById('has-data').hidden = false
+        document.getElementById('found').textContent = t.found.replace(
+          '{count}',
+          characters.length,
+        )
+        document.getElementById('move').addEventListener('click', () => {
+          location.href = `${NEW_URL}#/import/${encodeTransfer(backup)}`
+        })
+        document.getElementById('download').addEventListener('click', () => {
+          const url = URL.createObjectURL(new Blob([backup], { type: 'application/json' }))
+          const a = document.createElement('a')
+          a.href = url
+          a.download = backupFilename(now)
+          a.click()
+          setTimeout(() => URL.revokeObjectURL(url), 0)
+        })
+      }
+
+      if ('serviceWorker' in navigator) void navigator.serviceWorker.register('./sw.js')
+    </script>
+  </body>
+</html>
